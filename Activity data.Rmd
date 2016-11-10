@@ -1,0 +1,10 @@
+---
+title: "Activity Data"
+author: "Brian Wright"
+date: "8 November 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
