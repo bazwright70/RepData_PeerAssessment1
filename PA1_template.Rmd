@@ -1,25 +1,145 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
+author: "Brian Wright"
 output: 
   html_document:
     keep_md: true
 ---
+## Loading required libraries.  
 
+For this assignment we will require 3 packages to be installed and loaded on top of base R; "readr", "dplyr" and "ggplot2".  
+
+```{R message = FALSE}
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
 
 ## Loading and preprocessing the data
 
+We will download an activity dataset, unzip it and read it into a dataframe.  
+
+```{R message = FALSE}
+url <- paste0("https://d396qusza40orc.cloudfront.net/",
+              "repdata%2Fdata%2Factivity.zip")
+download.file(url, destfile = "./zipfile")
+act.data <- read_csv(unzip( "./zipfile"))
+```
 
 
-## What is mean total number of steps taken per day?
+## What is mean total number of steps taken per day?  
+
+We will create a summary data frame to look at daily activity and calclate the mean and median averages for steps taken per day. There is some missing data weill havo remove these rows for our average calculations.  
+
+```{R warning = FALSE}
+act.by.day <- act.data %>%
+    select(steps,date) %>%
+    group_by(date) %>%
+    summarise(steps = sum(steps))
+```
+
+We will look at the mean and meadian daily step counts.  
+
+```{R}
+mean(act.by.day$steps, na.rm = TRUE)
+median(act.by.day$steps,na.rm = TRUE)
+```  
+
+Here we will produce histogram showing the Frequency of step count totals per day.  
+
+```{R warning  = FALSE}
+ggplot(data  =  act.by.day, aes(x = steps))+
+    geom_histogram(bins = 30, col = "black",
+                   fill = "red")+
+    scale_x_continuous(breaks = seq(0,20000,2500))+
+    scale_y_continuous(breaks = seq(0,9,1))+
+    labs(x = "Step Count", y = "Frequency",
+    title  = "Frequency of Daily Step Counts")
+    
+```
 
 
+## What is the average daily activity pattern?  
 
-## What is the average daily activity pattern?
+Here we will use a time series plot to look at the differences in average step counts on different days.  
 
+```{R warning = FALSE}
+ggplot(data = act.by.day, aes(x = date,y = steps))+
+    stat_summary(geom = "line", fun.y = mean,col = "red")+
+    labs(x = "Date", y = "Average Steps per Day", title = "Time Series Plot of Average Steps per Day")
+```
+  
+The plot above shows us the change in average steps over time. We will now look at which interval on average contains the most steps. For this task we will produce a summary data frame ordered by step count but not including the NA values.  
 
+```{R}
+act.data.int.top <- act.data %>%
+    group_by(interval) %>%
+    summarise(steps = round(mean(steps,na.rm = TRUE))) %>%
+    arrange(desc(steps))
+```
+
+The interval with the most steps on average, is interval 
+`r act.data.int.top$interval[1]` with 
+`r act.data.int.top$steps[1]` steps.
 
 ## Imputing missing values
 
+We will first look at the number of missing values in the steps column. The data frame stepscolumn contains `r sum(is.na(act.data$steps))` NA values.
 
+We will now replace these NA values with a step count equal to the average for the interval in which the NA value sits. To do this we will create a new data frame with an average value column (avg.steps).
+
+```{R}
+act.data.imp <- act.data %>%
+    group_by(interval) %>%
+    mutate(avg.steps = round(mean(steps,na.rm = T))) %>%
+    ungroup()
+```
+
+We will now use the value from the avg.steps column for any NA value in the steps column.
+
+```{R}
+for(i in 1:nrow(act.data.imp)){
+    if(!is.na(act.data.imp$steps[i])){
+       next 
+    } else {act.data.imp$steps[i] <- act.data.imp$avg.steps[i]}
+}
+```
+
+With the NA values replced by an interval mean, we will examine the mean and median step counts before and after the imputed values to see if the NA values have possibly distoted our readings.
+
+```{R }
+act.by.day.imp <- act.data.imp %>%
+    select(steps,date) %>%
+    group_by(date) %>%
+    summarise(steps = sum(steps))
+```
+
+When step counts countain NA values we have a rounded mean daily step count of `r as.integer(mean(act.by.day$steps, na.rm = TRUE))` steps and a median step count of `r median(act.by.day$steps,na.rm = TRUE)` steps.
+
+If we replace the NA values with a mean average interval step count, we get a rounded mean daily step count of 
+`r as.integer(mean(act.by.day.imp$steps))` steps and a median daily step count of `r as.integer(median(act.by.day.imp$steps))` steps.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+As we have seen in a previous graph, the daily activity pattern varies by day. We will now look at wether there is a difference in step count between weekdays and weekend days. For this task we will produce a new column for our data frame which will be a factor variable indicating wether it is a week or weekend day.
+
+```{R}
+act.data.imp$day.type <- weekdays(act.data.imp$date)
+act.data.imp$day.type <- sapply(act.data.imp$day.type,
+                function(x){
+                    ifelse(x %in% c("Saturday","Sunday"),
+                        "Weekend","Weekday")          
+                })
+act.data.imp$day.type <- as.factor(act.data.imp$day.type)
+```
+
+We can plot the average step counts simultaneously for the two different day types to see any variation.
+
+```{R}
+ggplot(data = act.data.imp, aes(x = date, y = steps,col = day.type))+
+    stat_summary(geom = "line", fun.y = mean)+
+    facet_wrap(~ day.type, ncol = 1)+
+    labs(x = "Date", y = "Average number of steps",
+         title = "Average step comparison Weekday vs Weekend")+
+  theme(legend.position = "none")
+```

@@ -9,7 +9,8 @@ library(knitr)
 
 
 # get data
-url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+url <- paste0("https://d396qusza40orc.cloudfront.net/",
+              "repdata%2Fdata%2Factivity.zip")
 download.file(url, destfile = "./zipfile")
 act.data <- read_csv(unzip( "./zipfile"))
 
@@ -41,10 +42,10 @@ ggplot(data = act.by.day, aes(x = date,y = steps))+
     labs(x = "Date", y = "Average Steps per Day")
 
 # 5 minute interval with the most steps
-act.data %>%
-    filter(!is.na(steps)) %>%
-    summarise(Interval = interval[which(steps == max(steps))],
-              Steps = max(steps)) 
+act.data.int.top <- act.data %>%
+    group_by(interval) %>%
+    summarise(steps = round(mean(steps,na.rm = TRUE))) %>%
+    arrange(desc(steps))
 
 # count number of days with missing step values
 sum(is.na(act.data$steps))
